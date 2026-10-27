@@ -1,0 +1,32 @@
+# NEXUS CORE OS - ARCHITECTURAL IRON RULES & CONSTRAINTS
+# Status: NON-NEGOTIABLE (WAJIB DIPATUHI OLEH SEMUA DEVELOPER & AGENT AI)
+
+## 1. MULTI-TENANCY & ROW-LEVEL SECURITY (RLS)
+- SEMUA tabel bisnis (orders, products, customers, stock, invoices, dll.) WAJIB memiliki kolom `tenant_id UUID NOT NULL REFERENCES tenants(id)`.
+- SEMUA tabel bisnis WAJIB mengaktifkan RLS (`ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;` dan `FORCE ROW LEVEL SECURITY;`).
+- Session database WAJIB diisolasi menggunakan konfigurasi runtime PostgreSQL:
+  `SET LOCAL app.tenant_id = '<tenant-uuid>';`
+- Kebijakan RLS WAJIB dievaluasi terhadap fungsi `app.tenant_id()`.
+- DILARANG KERAS mengeksekusi query database multi-tenant tanpa menyetel context `app.tenant_id`.
+
+## 2. REPRESENTASI MATA UANG (MONEY REPRESENTATION)
+- DILARANG KERAS menggunakan tipe data `FLOAT`, `REAL`, atau `DECIMAL`/`NUMERIC` untuk nilai moneter.
+- SEMUA nilai uang WAJIB disimpan dalam tipe `BIGINT` minor units (misal: IDR disimpan dalam satuan Rupiah penuh, USD disimpan dalam cents).
+  - Contoh: Rp 10.000 disimpan sebagai `10000`.
+  - Contoh: $10.50 disimpan sebagai `1050`.
+- Konversi formatting mata uang HANYA dilakukan pada display layer di Frontend.
+
+## 3. AI SANDBOX & WRITE ISOLATION
+- Engine AI (LangGraph / AI Worker) beroperasi di Sandbox Terisolasi (Zona B).
+- Engine AI DILARANG memiliki kredensial write langsung ke tabel inti bisnis (`orders`, `stock_movements`, `stock_levels`, `payments`, `invoices`).
+- AI HANYA BOLEH menulis proposal atau draf ke tabel `ai_drafts`.
+- Eksekusi dari `ai_drafts` ke tabel operasional riil WAJIB melalui verifikasi manusia (Human-in-the-Loop) atau Rule Engine Backend yang terverifikasi (Zona A).
+
+## 4. APPEND-ONLY STOCK & IMMUTABLE LEDGER
+- Nilai stok fisik DILARANG di-UPDATE secara langsung di tabel inventaris (`UPDATE products SET stock = ...` adalah TINDAKAN ILEGAL).
+- Setiap perubahan stok (barang masuk, penjualan, retur, penyesuaian opname) WAJIB dicatat sebagai baris baru (append-only) di tabel `stock_movements`.
+- Tabel `stock_levels` HANYA bertindak sebagai cache read-model materialisasi yang diperbarui secara atomic melalui trigger database atau transaction worker.
+
+## 5. IDEMPOTENCY & FAULT TOLERANCE
+- SEMUA endpoint HTTP `POST`, `PUT`, `PATCH` yang memicu mutasi state atau transaksi keuangan WAJIB menerima dan memvalidasi header `Idempotency-Key`.
+- Jika request dengan `Idempotency-Key` yang sama dikirim ulang dalam window idempotency, backend WAJIB mengembalikan respon yang sama persis tanpa memproses ulang mutasi state atau database.

@@ -1,0 +1,1 @@
+# AI Worker agents module for Nexus Core OS
