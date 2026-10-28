@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "nexus-super-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
 
+    # Groq Cloud AI API Key
+    GROQ_API_KEY: str = ""
+
     @property
     def database_url(self) -> str:
         """Alias huruf kecil untuk kompatibilitas kode pengujian."""

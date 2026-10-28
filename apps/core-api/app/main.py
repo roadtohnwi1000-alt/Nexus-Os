@@ -9,6 +9,7 @@ from app.api.v1.orders import router as orders_router
 from app.api.v1.webhooks import router as webhooks_router
 from app.api.v1.ai_drafts import router as ai_drafts_router
 from app.api.v1.ai_training import router as ai_training_router
+from app.api.v1.data_import import router as import_router
 from app.api.internal.ai_tools import router as internal_ai_tools_router
 
 settings = get_settings()
@@ -73,6 +74,7 @@ app.include_router(orders_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
 app.include_router(ai_drafts_router, prefix="/api/v1")
 app.include_router(ai_training_router, prefix="/api/v1")
+app.include_router(import_router, prefix="/api/v1")
 app.include_router(internal_ai_tools_router)
 
 if __name__ == "__main__":

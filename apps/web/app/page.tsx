@@ -1,97 +1,207 @@
 import Link from "next/link";
+import { 
+  ShoppingCart, 
+  BrainCircuit, 
+  Inbox, 
+  Smartphone, 
+  ShieldCheck, 
+  ArrowRight, 
+  TrendingUp, 
+  Sparkles, 
+  CheckCircle2, 
+  Wrench,
+  Clock
+} from "lucide-react";
+import { formatRupiah } from "@/lib/api";
 
-export default function HomePage() {
+export default function DashboardPage() {
   return (
-    <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "48px 24px" }}>
-      <header style={{ marginBottom: "40px", borderBottom: "1px solid #1e293b", paddingBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-          <span
-            style={{
-              padding: "4px 10px",
-              background: "#3b82f6",
-              color: "#fff",
-              borderRadius: "6px",
-              fontSize: "12px",
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-            }}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Banner Selamat Datang */}
+      <div className="bg-gradient-to-r from-purple-950/40 via-[#181818] to-[#141414] border border-purple-500/20 rounded-2xl p-6 relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-purple-600/10 to-transparent pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono uppercase tracking-wider">
+                Nexus Core OS • Enterprise
+              </span>
+              <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Sistem Operasional Normal
+              </span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Selamat Datang di FixPhone & Parts Control Center
+            </h1>
+            <p className="text-xs text-gray-400 max-w-2xl">
+              Platform terintegrasi POS, manajemen servis unit handphone, basis pengetahuan ahli, dan asisten AI otonom dengan supervisi manusia (Human-in-the-Loop).
+            </p>
+          </div>
+
+          <Link
+            href="/pos"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/25 transition-all w-fit"
           >
-            FASE 0: FOUNDATION
-          </span>
-          <span style={{ color: "#10b981", fontSize: "14px", fontWeight: 500 }}>
-            ● Sistem Siap Diinisialisasi
-          </span>
+            <ShoppingCart className="w-4 h-4" />
+            <span>Buka Kasir POS</span>
+          </Link>
         </div>
-        <h1 style={{ fontSize: "36px", fontWeight: 800, margin: "0 0 12px 0", letterSpacing: "-0.02em" }}>
-          Nexus Core OS
-        </h1>
-        <p style={{ color: "#94a3b8", fontSize: "16px", margin: 0, maxWidth: "680px" }}>
-          Unified AI-Powered Commerce Platform (ERP + CRM + POS + AI Layer) berarsitektur Multi-Tenant Modular Monolith.
-        </p>
-      </header>
+      </div>
 
-      {/* Grid Status Arsitektur */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px", marginBottom: "40px" }}>
-        <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "12px", padding: "24px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 600, marginTop: 0, color: "#60a5fa" }}>
-            1. Multi-Tenancy & The Vault (DB)
-          </h2>
-          <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.6" }}>
-            PostgreSQL via Supabase Cloud diisolasi penuh menggunakan <strong>Row-Level Security (RLS)</strong> dan fungsi <code>app.tenant_id()</code>. Seluruh data bisnis terisolasi secara default (fail-closed).
-          </p>
-          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "12px" }}>
-            Status: Skema <code>001_foundation.sql</code> Terdefinisi
+      {/* Metrics Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1 */}
+        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-medium">Estimasi Omzet Hari Ini</span>
+            <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <TrendingUp className="w-4 h-4" />
+            </span>
+          </div>
+          <div>
+            <p className="text-xl font-black text-white font-mono">{formatRupiah(3850000)}</p>
+            <p className="text-[10px] text-emerald-400 font-medium mt-1">▲ +18.4% dari kemarin</p>
           </div>
         </div>
 
-        <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "12px", padding: "24px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 600, marginTop: 0, color: "#34d399" }}>
-            2. Core Backend (FastAPI)
-          </h2>
-          <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.6" }}>
-            FastAPI menyuntikkan tenant context langsung ke session Postgres lewat <code>SET LOCAL app.tenant_id</code> di dalam blok transaksi aman, mencegah kebocoran koneksi antar-tenant di connection pool.
-          </p>
-          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "12px" }}>
-            Status: Dependency & Endpoints Siap di <code>apps/core-api</code>
+        {/* Metric 2 */}
+        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-medium">Unit HP Dalam Servis</span>
+            <span className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+              <Smartphone className="w-4 h-4" />
+            </span>
+          </div>
+          <div>
+            <p className="text-xl font-black text-white font-mono">14 Unit</p>
+            <p className="text-[10px] text-gray-400 mt-1">4 unit siap diambil pelanggan</p>
           </div>
         </div>
 
-        <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "12px", padding: "24px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 600, marginTop: 0, color: "#fbbf24" }}>
-            3. AI Sandbox (Zona B)
-          </h2>
-          <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.6" }}>
-            Engine LangGraph diisolasi di Zona B. AI dilarang menulis langsung ke pesanan atau stok riil. Seluruh rekomendasi AI masuk ke antrean <code>ai_drafts</code> untuk Human-in-the-Loop review.
-          </p>
-          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "12px" }}>
-            Status: Isolated Worker di <code>apps/ai-worker</code>
+        {/* Metric 3 */}
+        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-medium">Draft AI Butuh Approval</span>
+            <span className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+              <Inbox className="w-4 h-4" />
+            </span>
+          </div>
+          <div>
+            <p className="text-xl font-black text-purple-300 font-mono">2 Pesan</p>
+            <Link href="/ai-inbox" className="text-[10px] text-purple-400 hover:underline mt-1 block">
+              Tinjau di AI Inbox →
+            </Link>
           </div>
         </div>
-      </section>
 
-      {/* 5 Aturan Besar (The 5 Iron Rules) */}
-      <section style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "28px" }}>
-        <h3 style={{ fontSize: "20px", fontWeight: 700, marginTop: 0, color: "#f87171", display: "flex", alignItems: "center", gap: "8px" }}>
-          🛡️ 5 Aturan Besar Arsitektur (The Iron Rules)
-        </h3>
-        <ol style={{ paddingLeft: "20px", color: "#cbd5e1", fontSize: "14px", lineHeight: "1.8", margin: 0 }}>
-          <li>
-            <strong>Multi-Tenancy & RLS:</strong> SEMUA tabel bisnis wajib memiliki <code>tenant_id</code> dan mengaktifkan RLS dengan <code>current_setting(&apos;app.tenant_id&apos;)</code>.
-          </li>
-          <li>
-            <strong>Representasi Uang:</strong> Dilarang menggunakan FLOAT/DECIMAL. Wajib menggunakan <code>BIGINT</code> (minor units / cents) untuk akurasi mutlak 0-drift.
-          </li>
-          <li>
-            <strong>AI Sandbox:</strong> AI hanya boleh menulis ke tabel <code>ai_drafts</code>, dilarang menulis langsung ke <code>orders</code> atau <code>stock</code>.
-          </li>
-          <li>
-            <strong>Append-Only Stock:</strong> Stok fisik tidak pernah di-UPDATE. Menggunakan mutasi <code>stock_movements</code> (immutable) dan cache <code>stock_levels</code>.
-          </li>
-          <li>
-            <strong>Idempotency:</strong> Semua endpoint POST mutasi state wajib menerima dan memvalidasi header <code>Idempotency-Key</code>.
-          </li>
-        </ol>
-      </section>
-    </main>
+        {/* Metric 4 */}
+        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-medium">Basis Pengetahuan Aktif</span>
+            <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+              <BrainCircuit className="w-4 h-4" />
+            </span>
+          </div>
+          <div>
+            <p className="text-xl font-black text-white font-mono">18 Modul</p>
+            <Link href="/ai-training" className="text-[10px] text-amber-400 hover:underline mt-1 block">
+              Kelola di AI Studio →
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Action Hub */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Action 1: POS & Kasir */}
+        <Link
+          href="/pos"
+          className="group bg-[#141414] hover:bg-[#181818] border border-[#262626] hover:border-purple-500/50 rounded-2xl p-6 transition-all flex flex-col justify-between shadow-lg"
+        >
+          <div>
+            <div className="w-12 h-12 rounded-xl bg-purple-600/15 text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <ShoppingCart className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors mb-1">
+              Point of Sale & Kasir Servis
+            </h2>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Pencatatan penjualan sparepart HP, aksesoris, serta modul penerimaan servis unit dengan form diagnosa kerusakan.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-purple-400 mt-6 group-hover:translate-x-1 transition-transform">
+            <span>Buka Kasir Sekarang</span>
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
+
+        {/* Action 2: AI Training */}
+        <Link
+          href="/ai-training"
+          className="group bg-[#141414] hover:bg-[#181818] border border-[#262626] hover:border-purple-500/50 rounded-2xl p-6 transition-all flex flex-col justify-between shadow-lg"
+        >
+          <div>
+            <div className="w-12 h-12 rounded-xl bg-indigo-600/15 text-indigo-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <BrainCircuit className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors mb-1">
+              AI Training & Expert Studio
+            </h2>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Latih chatbot toko dengan panduan perbaikan, FAQ diagnosa unit, dan aturan bisnis tanpa risiko halusinasi harga.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 mt-6 group-hover:translate-x-1 transition-transform">
+            <span>Konfigurasi Otak AI</span>
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
+
+        {/* Action 3: AI Inbox */}
+        <Link
+          href="/ai-inbox"
+          className="group bg-[#141414] hover:bg-[#181818] border border-[#262626] hover:border-purple-500/50 rounded-2xl p-6 transition-all flex flex-col justify-between shadow-lg"
+        >
+          <div>
+            <div className="w-12 h-12 rounded-xl bg-emerald-600/15 text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Inbox className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors mb-1">
+              AI Inbox & Supervised Approval
+            </h2>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Tinjau draft pesan otomatis sebelum dikirim ke WhatsApp pelanggan. Setujui atau alihkan ke operator manusia dengan 1 klik.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 mt-6 group-hover:translate-x-1 transition-transform">
+            <span>Buka Inbox Verifikasi</span>
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
+      </div>
+
+      {/* Security Architecture Summary */}
+      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 text-xs text-gray-400 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-white">PostgreSQL Row-Level Security (RLS) Active</p>
+            <p className="text-[11px] text-gray-400">
+              Tenant ID terisolasi penuh pada level kernel database (Zero cross-tenant leakage).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 font-mono text-[11px] text-purple-300 bg-[#1c1c1c] px-3 py-1.5 rounded-lg border border-[#2b2b2b]">
+          <span>Zone B AI Worker</span>
+          <span className="text-gray-500">•</span>
+          <span>FastAPI Zone A</span>
+        </div>
+      </div>
+    </div>
   );
 }
