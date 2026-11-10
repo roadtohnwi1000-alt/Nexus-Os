@@ -1,0 +1,1 @@
+# Marketplace Adapters Package

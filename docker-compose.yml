@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # 1. Database: PostgreSQL 16 dengan ekstensi pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexus_db}
+      POSTGRES_USER: ${POSTGRES_USER:-nexus_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus_secret_pass_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./packages/db-schema:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_admin -d nexus_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Caching & Queue Worker
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. Backend Core API (FastAPI - Modular Monolith)
+  core-api:
+    build:
+      context: .
+      dockerfile: apps/core-api/Dockerfile
+    container_name: nexus-core-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://nexus_admin:nexus_secret_pass_2026@postgres:5432/nexus_db
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./media:/app/media
+
+  # 4. Frontend Next.js Web App
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: nexus-web
+    restart: always
+    depends_on:
+      - core-api
+    environment:
+      NEXT_PUBLIC_CORE_API_URL: http://core-api:8000
+      PORT: 3000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  redisdata:

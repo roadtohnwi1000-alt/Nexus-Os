@@ -1,3 +1,27 @@
+import sys
+import os
+from importlib.abc import MetaPathFinder
+from importlib.util import spec_from_file_location
+
+class PurePythonSQLAlchemyFinder(MetaPathFinder):
+    """
+    Bypasses Windows Application Control / Smart App Control policy
+    which blocks unsigned .pyd binaries in SQLAlchemy by transparently falling
+    back to SQLAlchemy's built-in pure Python implementations.
+    """
+    def find_spec(self, fullname, path, target=None):
+        if fullname.startswith("sqlalchemy.") and fullname.endswith("_cy"):
+            if path:
+                mod_name = fullname.split(".")[-1]
+                for p in path:
+                    py_file = os.path.join(p, mod_name + ".py")
+                    if os.path.isfile(py_file):
+                        return spec_from_file_location(fullname, py_file)
+        return None
+
+if not any(isinstance(f, PurePythonSQLAlchemyFinder) for f in sys.meta_path):
+    sys.meta_path.insert(0, PurePythonSQLAlchemyFinder())
+
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +34,23 @@ from app.api.v1.webhooks import router as webhooks_router
 from app.api.v1.ai_drafts import router as ai_drafts_router
 from app.api.v1.ai_training import router as ai_training_router
 from app.api.v1.data_import import router as import_router
+from app.api.v1.repair_tickets import router as repair_tickets_router
+from app.api.v1.accounting import router as accounting_router
+from app.api.v1.inventory import router as inventory_router
+from app.api.v1.intelligence import router as intelligence_router
+from app.api.v1.crm import router as crm_router
+from app.api.v1.marketing import router as marketing_router
+from app.api.v1.csuite_telegram import router as csuite_telegram_router
+from app.api.v1.simulator import router as simulator_router
+from app.api.v1.whatsapp_bot import router as whatsapp_bot_router
+from app.api.v1.control_plane_api import router as control_plane_router
+from app.api.v1.shifts import router as shifts_router
+from app.api.v1.marketplace_webhook import router as marketplace_webhook_router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.team import router as team_router
+from app.api.v1.ecommerce import router as ecommerce_router
+from app.api.v1.video_studio import router as video_studio_router
+from app.api.v1.publishing import router as publishing_router
 from app.api.internal.ai_tools import router as internal_ai_tools_router
 
 settings = get_settings()
@@ -75,6 +116,23 @@ app.include_router(webhooks_router, prefix="/api/v1")
 app.include_router(ai_drafts_router, prefix="/api/v1")
 app.include_router(ai_training_router, prefix="/api/v1")
 app.include_router(import_router, prefix="/api/v1")
+app.include_router(repair_tickets_router, prefix="/api/v1")
+app.include_router(accounting_router, prefix="/api/v1")
+app.include_router(inventory_router, prefix="/api/v1")
+app.include_router(intelligence_router, prefix="/api/v1")
+app.include_router(crm_router, prefix="/api/v1")
+app.include_router(marketing_router, prefix="/api/v1")
+app.include_router(csuite_telegram_router, prefix="/api/v1")
+app.include_router(simulator_router, prefix="/api/v1")
+app.include_router(whatsapp_bot_router, prefix="/api/v1")
+app.include_router(control_plane_router, prefix="/api/v1")
+app.include_router(shifts_router, prefix="/api/v1")
+app.include_router(marketplace_webhook_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(team_router, prefix="/api/v1")
+app.include_router(ecommerce_router, prefix="/api/v1")
+app.include_router(video_studio_router, prefix="/api/v1")
+app.include_router(publishing_router, prefix="/api/v1")
 app.include_router(internal_ai_tools_router)
 
 if __name__ == "__main__":

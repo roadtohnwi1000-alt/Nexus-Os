@@ -7,6 +7,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_tenant_db
 from app.core.security import get_current_tenant_id
+from app.services.marketplace.mock_tiktok_adapter import (
+    simulate_incoming_order,
+    process_marketplace_order
+)
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks & Ingestion"])
 
@@ -114,3 +118,29 @@ async def handle_whatsapp_webhook(
         "external_id": payload.external_id,
         "job_id": str(job_id)
     }
+
+@router.post("/mock-tiktok", status_code=status.HTTP_200_OK, summary="Menerima webhook simulasi pesanan masuk TikTok Shop")
+async def handle_mock_tiktok_webhook(
+    payload: Optional[Dict[str, Any]] = None,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_tenant_id: UUID = Depends(get_current_tenant_id)
+):
+    """
+    Endpoint Webhook Mock TikTok Shop:
+    1. Menerima payload webhook pesanan TikTok (atau generate otomatis jika payload kosong).
+    2. Mengunci & mengurangi stok produk sesuai marketplace_sku / sku.
+    3. Mencatat riwayat mutasi stok (append-only ledger).
+    4. Membuat transaksi pesanan resmi.
+    5. Menghasilkan jurnal akuntansi double-entry otomatis (Kas vs Penjualan, HPP vs Persediaan).
+    6. Mengirimkan konfirmasi via WhatsApp Service (Mock).
+    """
+    if not payload:
+        payload = simulate_incoming_order(tenant_id=current_tenant_id)
+
+    result = await process_marketplace_order(
+        tenant_id=current_tenant_id,
+        order_payload=payload,
+        db=db
+    )
+    return result
+

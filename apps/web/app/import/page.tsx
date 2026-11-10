@@ -24,6 +24,7 @@ import {
   ImportResult, 
   formatRupiah 
 } from "@/lib/api";
+import PaywallGate from "@/components/PaywallGate";
 
 type ImportTab = "items" | "contacts";
 
@@ -96,11 +97,20 @@ export default function DataImportPage() {
   };
 
   // Handler Download Template CSV
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = (type: "ketoko" | "accurate" | "contacts" = "ketoko") => {
     let csvContent = "";
     let filename = "";
 
-    if (activeTab === "items") {
+    if (type === "ketoko") {
+      filename = "template_export_ketoko.csv";
+      csvContent = 
+        "Kode Barang,Nama Barang,Harga Jual,Stok,Kategori,Merek,Harga Beli,Marketplace SKU,Barcode\n" +
+        "LCD-IPH-11,LCD iPhone 11 Original OEM,650000,15,Sparepart,Apple,480000,TTS-IP11-SCREEN-01,899123456701\n" +
+        "BAT-SAM-S21,Baterai Samsung Galaxy S21,320000,10,Sparepart,Samsung,210000,TTS-S21-BATT-01,899123456702\n" +
+        "CAS-MAG-CLR,Casing MagSafe Clear Armor,75000,50,Aksesoris,Universal,35000,TTS-CASE-MAG-01,899123456703\n" +
+        "CAB-TC-100W,Kabel Data Type-C 100W Braided,55000,40,Aksesoris,Universal,25000,TTS-CAB-TC100-01,899123456704\n" +
+        "SRV-PASANG-LCD,Jasa Pasang LCD & Kalibrasi,100000,0,Jasa Service,Internal,0,,\n";
+    } else if (type === "accurate") {
       filename = "template_produk_accurate.csv";
       csvContent = 
         "SKU,Nama Barang,Harga Jual,Stok,Tipe,Kategori,Brand\n" +
@@ -165,13 +175,28 @@ export default function DataImportPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-6xl mx-auto">
+    <PaywallGate
+      featureKey="ai_mass_onboarding"
+      featureTitle="AI Mass Onboarding (300 SKU Instant)"
+      featureDescription="Unggah daftar katalog atau invoice dari supplier format apa pun (Excel/CSV/PDF). AI akan membaca, mengekstrak spesifikasi, dan membuat 300 katalog produk otomatis!"
+      benefits={[
+        "Ekstraksi otomatis 300+ SKU dalam hitungan detik tanpa ketik manual",
+        "Penetapan tier harga (Retail, Reseller, Modal) secara serentak",
+        "Pencocokan barcode & kategori cerdas berbasis AI",
+        "Bisa langsung di-crosslist ke TikTok Shop & Shopee",
+      ]}
+    >
+      <div className="space-y-6 pb-12 max-w-6xl mx-auto">
       {/* Header Halaman */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-[#262626]">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+              <Building2 className="w-3.5 h-3.5 text-blue-400" />
+              Parallel Run Testing Mode
+            </span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              Enterprise Onboarding
+              KetoKo Compatible
             </span>
             <span className="text-xs text-gray-400 font-mono">Tenant: 11111111...1111</span>
           </div>
@@ -180,18 +205,59 @@ export default function DataImportPage() {
             Migrasi & Import Data Massal
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            Pindahkan ribuan katalog produk Accurate atau database kontak Salesforce ke Nexus Core OS dalam hitungan detik.
+            Pindahkan riwayat katalog produk KetoKo (po.ketoko.co.id) atau Accurate ke Nexus Core OS tanpa risiko bentrok.
           </p>
         </div>
 
         {/* Tombol Download Template */}
-        <button
-          onClick={handleDownloadTemplate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] text-xs font-semibold text-gray-200 transition-colors shadow-sm shrink-0 self-start md:self-auto"
-        >
-          <Download className="w-4 h-4 text-purple-400" />
-          <span>Download Template CSV ({activeTab === "items" ? "Produk" : "Kontak"})</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => handleDownloadTemplate("ketoko")}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs font-semibold text-purple-200 transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4 text-purple-400" />
+            <span>Template CSV KetoKo (Siap TikTok Shop)</span>
+          </button>
+          <button
+            onClick={() => handleDownloadTemplate(activeTab === "items" ? "accurate" : "contacts")}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] text-xs font-semibold text-gray-300 transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4 text-gray-400" />
+            <span>Format Standar ({activeTab === "items" ? "Produk" : "Kontak"})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Banner Panduan Parallel Run KetoKo */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/30 to-purple-950/20 border border-blue-500/30 text-xs text-slate-300 space-y-2">
+        <div className="flex items-center gap-2 font-bold text-blue-300 text-sm">
+          <Info className="w-4 h-4 text-blue-400" />
+          <span>Panduan Parallel Run KetoKo (po.ketoko.co.id) → Nexus Core OS</span>
+        </div>
+        <p className="text-gray-300 leading-relaxed">
+          Sistem otomatis mendeteksi kolom export standar KetoKo. Anda tidak perlu mengubah nama kolom:
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[11px]">
+          <div className="bg-[#121212]/70 p-2 rounded-lg border border-[#262626]">
+            <span className="text-gray-400 block text-[10px]">Kode Barang / SKU</span>
+            <span className="text-purple-300 font-semibold">→ sku</span>
+          </div>
+          <div className="bg-[#121212]/70 p-2 rounded-lg border border-[#262626]">
+            <span className="text-gray-400 block text-[10px]">Nama Barang</span>
+            <span className="text-purple-300 font-semibold">→ name</span>
+          </div>
+          <div className="bg-[#121212]/70 p-2 rounded-lg border border-[#262626]">
+            <span className="text-gray-400 block text-[10px]">Harga Jual (Rp 10.000)</span>
+            <span className="text-emerald-400 font-semibold">→ base_price</span>
+          </div>
+          <div className="bg-[#121212]/70 p-2 rounded-lg border border-[#262626]">
+            <span className="text-gray-400 block text-[10px]">Stok / Saldo Akhir</span>
+            <span className="text-blue-400 font-semibold">→ stock_levels</span>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 pt-1">
+          🛡️ <em>Semua transaksi dan stok di Nexus OS berjalan pada database tenant terpisah, sehingga 100% aman dan tidak akan mengganggu sistem KetoKo yang aktif di toko.</em>
+        </p>
       </div>
 
       {/* Tab Switcher */}
@@ -205,7 +271,7 @@ export default function DataImportPage() {
           }`}
         >
           <Package className="w-4 h-4" />
-          <span>Import Produk & Jasa (Accurate)</span>
+          <span>Import Produk & Jasa (KetoKo / Accurate)</span>
         </button>
 
         <button
@@ -619,5 +685,6 @@ export default function DataImportPage() {
         </div>
       )}
     </div>
+    </PaywallGate>
   );
 }

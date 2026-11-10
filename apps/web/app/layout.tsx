@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Nexus Core OS | Enterprise Unified Commerce & AI Dashboard",
-  description: "AI-Powered Multi-Tenant ERP, CRM, POS, and AI Operations Platform",
+  title: "NEXUS OS | Universal Business Operating System & Autonomous Commerce",
+  description: "Satu Platform Kasir POS Cepat, Multi-Gudang, dan Otomasi AI untuk Semua Jenis Usaha di Indonesia",
 };
 
 export default function RootLayout({
@@ -16,17 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className="dark">
-      <body className="bg-[#0f0f0f] text-gray-100 min-h-screen flex antialiased">
-        {/* Navigation Sidebar */}
-        <Sidebar />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <Navbar />
-          <main className="flex-1 p-6 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+      <body className="bg-[#0d0d0d] text-gray-100 min-h-screen antialiased">
+        <AppShell>
+          {children}
+        </AppShell>
       </body>
     </html>
   );

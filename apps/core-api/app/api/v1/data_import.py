@@ -66,14 +66,36 @@ def clean_header(header: str) -> str:
     header = header.replace("\ufeff", "").strip().lower()
     return re.sub(r"[\s\-_]+", " ", header)
 
+def extract_field_value(row: Dict[str, str], synonyms: List[str]) -> str:
+    """
+    Mencocokkan nilai kolom dari baris CSV berdasarkan daftar sinonim header
+    (kompatibilitas otomatis untuk export KetoKo, Accurate, mau pun CSV kustom).
+    """
+    # 1. Exact match prioritas tinggi
+    for syn in synonyms:
+        syn_clean = clean_header(syn)
+        for k, v in row.items():
+            if clean_header(k) == syn_clean and v.strip():
+                return v.strip()
+    # 2. Substring match jika exact tidak ditemukan
+    for syn in synonyms:
+        syn_clean = clean_header(syn)
+        for k, v in row.items():
+            k_clean = clean_header(k)
+            if syn_clean in k_clean and v.strip():
+                return v.strip()
+    return ""
+
 def parse_rupiah_to_int(val: Any) -> Optional[int]:
     """
     Mengonversi string harga format Indonesia / internasional ke integer minor units (BIGINT).
-    Contoh:
-    - "Rp 25.000" -> 25000
-    - "25.000,00" -> 25000
-    - "25000" -> 25000
-    - 25000.0 -> 25000
+    Mendukung format export KetoKo / Accurate / POS:
+    - "Rp 10.000" / "Rp. 10.000" -> 10000
+    - "10.000,00" -> 10000
+    - "10000" -> 10000
+    - "10.000" -> 10000
+    - "10,000.00" -> 10000
+    - 10000 -> 10000
     """
     if val is None:
         return None
@@ -85,9 +107,13 @@ def parse_rupiah_to_int(val: Any) -> Optional[int]:
     s = str(val).strip()
     if not s:
         return None
+        
+    # Cek nilai negatif
+    if "-" in s:
+        return None
     
     # Hapus simbol mata uang dan whitespace
-    s = re.sub(r"(?i)^(rp|idr|\$)\s*", "", s).strip()
+    s = re.sub(r"(?i)^(rp\.?|idr|\$)\s*", "", s).strip()
     
     # Jika format Indonesia "25.000,00" -> buang desimal ",00"
     if "," in s and "." in s:
@@ -102,7 +128,7 @@ def parse_rupiah_to_int(val: Any) -> Optional[int]:
     elif "," in s:
         # Cek jika koma dipakai sebagai pemisah ribuan atau desimal
         parts = s.split(",")
-        if len(parts) == 2 and len(parts[1]) == 2:
+        if len(parts) == 2 and len(parts[1]) in (1, 2):
             # Desimal dua digit, contoh: "25000,00"
             s = parts[0].replace(".", "")
         else:
@@ -280,25 +306,30 @@ async def import_items(
     errors: List[RowErrorDetail] = []
     seen_file_skus: set = set()
 
+    # Sinonim kolom umum untuk export KetoKo / Accurate / ERP
+    SKU_SYNONYMS = ["kode barang", "kode item", "kode produk", "sku", "kode", "item code", "kode_barang", "kode_item"]
+    MP_SKU_SYNONYMS = ["marketplace sku", "sku marketplace", "sku tiktok", "tiktok sku", "tiktok_sku", "sku_tiktok", "sku shopee", "shopee sku", "sku olshop"]
+    BARCODE_SYNONYMS = ["barcode", "kode barcode", "no barcode", "bar code", "kode_barcode"]
+    NAME_SYNONYMS = ["nama barang", "nama item", "nama produk", "nama", "name", "deskripsi", "item name", "keterangan barang", "nama_barang"]
+    PRICE_SYNONYMS = ["harga jual", "harga jual 1", "harga 1", "harga retail", "harga eceran", "base price", "price", "unit price", "harga_jual", "harga"]
+    PRICE_RESELLER_SYNONYMS = ["harga reseller", "harga jual 2", "harga 2", "reseller", "harga grosir", "grosir", "harga_reseller"]
+    PRICE_TECH_SYNONYMS = ["harga teknisi", "harga jual 3", "harga 3", "teknisi", "harga bengkel", "harga_teknisi"]
+    COST_SYNONYMS = ["harga beli", "harga pokok", "hpp", "modal", "harga modal", "cost price", "harga_beli"]
+    STOCK_SYNONYMS = ["stok", "stok akhir", "stock", "qty", "jumlah", "quantity", "saldo akhir", "total stok", "stok sekarang", "stok_akhir"]
+    CAT_SYNONYMS = ["kategori", "category", "kelompok", "grup", "jenis barang", "kelompok barang", "group", "kategori barang"]
+    BRAND_SYNONYMS = ["merek", "brand", "merk"]
+    UNIT_SYNONYMS = ["satuan", "satuan dasar", "unit", "uom"]
+    TYPE_SYNONYMS = ["tipe", "type", "jenis", "jenis item", "tipe item", "item type"]
+    RACK_SYNONYMS = ["rak", "lokasi", "gudang", "shelf", "warehouse"]
+
     for row_idx, row in enumerate(raw_rows, start=2): # Baris 1 adalah header
-        # 1. Ekstraksi SKU
-        sku_val = (
-            row.get("sku") or 
-            row.get("kode") or 
-            row.get("kode barang") or 
-            row.get("item code") or 
-            ""
-        ).strip()
+        # 1. Ekstraksi SKU & Barcode & Marketplace SKU
+        sku_val = extract_field_value(row, SKU_SYNONYMS)
+        marketplace_sku_val = extract_field_value(row, MP_SKU_SYNONYMS) or None
+        barcode_val = extract_field_value(row, BARCODE_SYNONYMS) or None
 
         # 2. Ekstraksi Nama
-        name_val = (
-            row.get("nama barang") or 
-            row.get("nama produk") or 
-            row.get("nama") or 
-            row.get("name") or 
-            row.get("deskripsi") or 
-            ""
-        ).strip()
+        name_val = extract_field_value(row, NAME_SYNONYMS)
 
         if not name_val:
             errors.append(RowErrorDetail(
@@ -308,9 +339,9 @@ async def import_items(
             ))
             continue
 
-        # Jika SKU kosong, generate SKU otomatis
+        # Jika SKU kosong, generate SKU otomatis atau gunakan barcode
         if not sku_val:
-            sku_val = f"ITEM-{uuid4().hex[:8].upper()}"
+            sku_val = barcode_val or f"ITEM-{uuid4().hex[:8].upper()}"
 
         sku_upper = sku_val.upper()
 
@@ -334,15 +365,8 @@ async def import_items(
 
         seen_file_skus.add(sku_upper)
 
-        # 3. Ekstraksi Harga Jual (Wajib Integer Minor Units)
-        raw_price = (
-            row.get("harga jual") or 
-            row.get("harga") or 
-            row.get("base price") or 
-            row.get("price") or 
-            row.get("unit price") or 
-            None
-        )
+        # 3. Ekstraksi Harga Jual Dasar & Multi-Tier (Wajib Integer Minor Units)
+        raw_price = extract_field_value(row, PRICE_SYNONYMS)
         base_price = parse_rupiah_to_int(raw_price)
         if base_price is None:
             errors.append(RowErrorDetail(
@@ -352,26 +376,23 @@ async def import_items(
             ))
             continue
 
+        # Harga Reseller & Teknisi (opsional, fallback ke tier kalkulasi)
+        raw_reseller = extract_field_value(row, PRICE_RESELLER_SYNONYMS)
+        price_reseller = parse_rupiah_to_int(raw_reseller) if raw_reseller else int(base_price * 0.90)
+
+        raw_tech = extract_field_value(row, PRICE_TECH_SYNONYMS)
+        price_technician = parse_rupiah_to_int(raw_tech) if raw_tech else int(base_price * 0.85)
+
+        # Harga Beli / HPP Modal
+        raw_cost = extract_field_value(row, COST_SYNONYMS)
+        cost_price = parse_rupiah_to_int(raw_cost) if raw_cost else None
+
         # 4. Ekstraksi Stok
-        raw_stock = (
-            row.get("stok") or 
-            row.get("stock") or 
-            row.get("qty") or 
-            row.get("jumlah") or 
-            row.get("quantity") or 
-            0
-        )
+        raw_stock = extract_field_value(row, STOCK_SYNONYMS)
         stock_qty = parse_stock_to_int(raw_stock)
 
         # 5. Ekstraksi Tipe Item
-        raw_type = (
-            row.get("tipe") or 
-            row.get("type") or 
-            row.get("item type") or 
-            row.get("jenis") or 
-            "stocked"
-        ).strip().lower()
-
+        raw_type = extract_field_value(row, TYPE_SYNONYMS).lower()
         if any(keyword in raw_type for keyword in ["jasa", "service", "layanan"]):
             item_type = "service"
         elif "digital" in raw_type:
@@ -380,33 +401,52 @@ async def import_items(
             item_type = "stocked"
 
         # 6. Kumpulkan atribut tambahan ke JSONB
-        category_val = row.get("kategori") or row.get("category") or ("Jasa" if item_type == "service" else "Sparepart")
-        brand_val = row.get("brand") or row.get("merek") or ""
+        category_val = extract_field_value(row, CAT_SYNONYMS) or ("Jasa Service" if item_type == "service" else "Sparepart")
+        brand_val = extract_field_value(row, BRAND_SYNONYMS)
+        unit_val = extract_field_value(row, UNIT_SYNONYMS) or "PCS"
+        rack_val = extract_field_value(row, RACK_SYNONYMS)
         warranty_val = row.get("garansi") or row.get("warranty") or ""
         
         attributes = {
-            "source": "accurate_csv_import",
+            "source": "ketoko_csv_import",
             "category": category_val,
             "stock": stock_qty
         }
+        if marketplace_sku_val:
+            attributes["marketplace_sku"] = marketplace_sku_val
+            attributes["tiktok_sku"] = marketplace_sku_val
+        if barcode_val:
+            attributes["barcode"] = barcode_val
         if brand_val:
             attributes["brand"] = brand_val
+        if unit_val:
+            attributes["unit"] = unit_val
+        if cost_price is not None:
+            attributes["cost_price"] = cost_price
+            attributes["hpp"] = cost_price
+        if rack_val:
+            attributes["rack"] = rack_val
         if warranty_val:
             attributes["warranty"] = warranty_val
 
         # Simpan kolom ekstra lainnya yang tidak termasuk standar
         for k, v in row.items():
-            if k not in ["sku", "nama barang", "nama produk", "nama", "harga jual", "harga", "stok", "tipe", "kategori", "brand"]:
-                if v:
+            k_clean = clean_header(k)
+            if k_clean not in ["sku", "kode barang", "nama barang", "harga jual", "stok", "kategori", "merek", "brand", "harga beli"]:
+                if v and k not in attributes:
                     attributes[k] = v
 
         valid_items_to_insert.append({
             "id": str(uuid4()),
             "tenant_id": str(current_tenant_id),
             "sku": sku_val,
+            "marketplace_sku": marketplace_sku_val,
             "name": name_val,
             "item_type": item_type,
             "base_price": base_price,
+            "price_retail": base_price,
+            "price_reseller": price_reseller,
+            "price_technician": price_technician,
             "attributes": json.dumps(attributes),
             "stock_qty": stock_qty
         })
@@ -416,69 +456,167 @@ async def import_items(
     
     if valid_items_to_insert:
         try:
-            for item in valid_items_to_insert:
-                # Insert item
-                await db.execute(
-                    text("""
-                        INSERT INTO public.items (
-                            id, tenant_id, sku, name, item_type, base_price, attributes, active
-                        ) VALUES (
-                            :id, :tenant_id, :sku, :name, :item_type, :base_price, :attributes::jsonb, true
-                        )
-                    """),
-                    {
-                        "id": item["id"],
-                        "tenant_id": item["tenant_id"],
-                        "sku": item["sku"],
-                        "name": item["name"],
-                        "item_type": item["item_type"],
-                        "base_price": item["base_price"],
-                        "attributes": item["attributes"]
-                    }
+            # Ambil lokasi aktif pertama untuk penempatan stok (multi-location support)
+            default_location_id = None
+            try:
+                loc_res = await db.execute(
+                    text("SELECT id FROM public.locations WHERE tenant_id = :tenant_id AND is_active = true ORDER BY created_at ASC LIMIT 1"),
+                    {"tenant_id": str(current_tenant_id)}
                 )
+                first_loc = loc_res.fetchone()
+                if first_loc:
+                    default_location_id = first_loc[0]
+            except Exception:
+                pass
 
-                # Jika item fisik dan memiliki stok awal > 0, inisialisasi di stock_levels
+            for item in valid_items_to_insert:
+                # 1. Insert item ke public.items
+                try:
+                    await db.execute(
+                        text("""
+                            INSERT INTO public.items (
+                                id, tenant_id, sku, marketplace_sku, name, item_type,
+                                base_price, price_retail, price_reseller, price_technician,
+                                attributes, active
+                            ) VALUES (
+                                :id, :tenant_id, :sku, :marketplace_sku, :name, :item_type,
+                                :base_price, :price_retail, :price_reseller, :price_technician,
+                                :attributes::jsonb, true
+                            )
+                        """),
+                        {
+                            "id": item["id"],
+                            "tenant_id": item["tenant_id"],
+                            "sku": item["sku"],
+                            "marketplace_sku": item["marketplace_sku"],
+                            "name": item["name"],
+                            "item_type": item["item_type"],
+                            "base_price": item["base_price"],
+                            "price_retail": item["price_retail"],
+                            "price_reseller": item["price_reseller"],
+                            "price_technician": item["price_technician"],
+                            "attributes": item["attributes"]
+                        }
+                    )
+                except Exception:
+                    # Fallback jika kolom marketplace_sku / tiers belum ada di remote DB
+                    await db.execute(
+                        text("""
+                            INSERT INTO public.items (
+                                id, tenant_id, sku, name, item_type, base_price, attributes, active
+                            ) VALUES (
+                                :id, :tenant_id, :sku, :name, :item_type, :base_price, :attributes::jsonb, true
+                            )
+                        """),
+                        {
+                            "id": item["id"],
+                            "tenant_id": item["tenant_id"],
+                            "sku": item["sku"],
+                            "name": item["name"],
+                            "item_type": item["item_type"],
+                            "base_price": item["base_price"],
+                            "attributes": item["attributes"]
+                        }
+                    )
+
+                # 2. Jika item fisik dan memiliki stok awal > 0, inisialisasi di stock_levels
                 if item["item_type"] == "stocked" and item["stock_qty"] > 0:
-                    await db.execute(
-                        text("""
-                            INSERT INTO public.stock_levels (
-                                id, tenant_id, item_id, on_hand, reserved
-                            ) VALUES (
-                                gen_random_uuid(), :tenant_id, :item_id, :on_hand, 0
+                    try:
+                        if default_location_id:
+                            await db.execute(
+                                text("""
+                                    INSERT INTO public.stock_levels (
+                                        id, tenant_id, item_id, location_id, on_hand, reserved
+                                    ) VALUES (
+                                        gen_random_uuid(), :tenant_id, :item_id, :location_id, :on_hand, 0
+                                    )
+                                    ON CONFLICT (tenant_id, item_id, location_id) 
+                                    DO UPDATE SET on_hand = public.stock_levels.on_hand + EXCLUDED.on_hand
+                                """),
+                                {
+                                    "tenant_id": item["tenant_id"],
+                                    "item_id": item["id"],
+                                    "location_id": default_location_id,
+                                    "on_hand": item["stock_qty"]
+                                }
                             )
-                            ON CONFLICT (tenant_id, item_id) 
-                            DO UPDATE SET on_hand = public.stock_levels.on_hand + EXCLUDED.on_hand
-                        """),
-                        {
-                            "tenant_id": item["tenant_id"],
-                            "item_id": item["id"],
-                            "on_hand": item["stock_qty"]
-                        }
-                    )
+                        else:
+                            await db.execute(
+                                text("""
+                                    INSERT INTO public.stock_levels (
+                                        id, tenant_id, item_id, on_hand, reserved
+                                    ) VALUES (
+                                        gen_random_uuid(), :tenant_id, :item_id, :on_hand, 0
+                                    )
+                                    ON CONFLICT (tenant_id, item_id) 
+                                    DO UPDATE SET on_hand = public.stock_levels.on_hand + EXCLUDED.on_hand
+                                """),
+                                {
+                                    "tenant_id": item["tenant_id"],
+                                    "item_id": item["id"],
+                                    "on_hand": item["stock_qty"]
+                                }
+                            )
+                    except Exception:
+                        await db.execute(
+                            text("""
+                                INSERT INTO public.stock_levels (
+                                    id, tenant_id, item_id, on_hand, reserved
+                                ) VALUES (
+                                    gen_random_uuid(), :tenant_id, :item_id, :on_hand, 0
+                                )
+                            """),
+                            {
+                                "tenant_id": item["tenant_id"],
+                                "item_id": item["id"],
+                                "on_hand": item["stock_qty"]
+                            }
+                        )
                     
-                    # Catat riwayat di stock_movements
-                    await db.execute(
-                        text("""
-                            INSERT INTO public.stock_movements (
-                                id, tenant_id, item_id, qty_delta, reason, ref_id
-                            ) VALUES (
-                                gen_random_uuid(), :tenant_id, :item_id, :qty_delta, 'initial_import', 'ACCURATE-CSV'
-                            )
-                        """),
-                        {
-                            "tenant_id": item["tenant_id"],
-                            "item_id": item["id"],
-                            "qty_delta": item["stock_qty"]
-                        }
-                    )
+                    # 3. Catat riwayat di stock_movements (audit ledger untuk parallel run comparison)
+                    try:
+                        await db.execute(
+                            text("""
+                                INSERT INTO public.stock_movements (
+                                    id, tenant_id, item_id, location_id, qty_delta, reason, ref_id
+                                ) VALUES (
+                                    gen_random_uuid(), :tenant_id, :item_id, :location_id, :qty_delta, 'KETOKO_PARALLEL_MIGRATION', 'KETOKO-CSV'
+                                )
+                            """),
+                            {
+                                "tenant_id": item["tenant_id"],
+                                "item_id": item["id"],
+                                "location_id": default_location_id,
+                                "qty_delta": item["stock_qty"]
+                            }
+                        )
+                    except Exception:
+                        await db.execute(
+                            text("""
+                                INSERT INTO public.stock_movements (
+                                    id, tenant_id, item_id, qty_delta, reason, ref_id
+                                ) VALUES (
+                                    gen_random_uuid(), :tenant_id, :item_id, :qty_delta, 'KETOKO_PARALLEL_MIGRATION', 'KETOKO-CSV'
+                                )
+                            """),
+                            {
+                                "tenant_id": item["tenant_id"],
+                                "item_id": item["id"],
+                                "qty_delta": item["stock_qty"]
+                            }
+                        )
 
             await db.commit()
 
             sample_imported = [
                 {
                     "sku": it["sku"],
+                    "marketplace_sku": it["marketplace_sku"],
                     "name": it["name"],
                     "base_price": it["base_price"],
+                    "price_retail": it["price_retail"],
+                    "price_reseller": it["price_reseller"],
+                    "price_technician": it["price_technician"],
                     "item_type": it["item_type"],
                     "stock": it["stock_qty"]
                 }
@@ -684,6 +822,28 @@ async def download_items_template():
         media_type="text/csv",
         headers={
             "Content-Disposition": 'attachment; filename="template_produk_accurate.csv"'
+        }
+    )
+
+@router.get("/template/ketoko", summary="Download contoh template CSV kompatibel KetoKo (po.ketoko.co.id)")
+async def download_ketoko_template():
+    """
+    Mengunduh format template CSV ideal yang 100% kompatibel dengan export KetoKo
+    dan langsung siap sinkronisasi dengan TikTok Shop.
+    """
+    csv_content = (
+        "Kode Barang,Nama Barang,Harga Jual,Stok,Kategori,Merek,Harga Beli,Marketplace SKU,Barcode\n"
+        "LCD-IPH-11,LCD iPhone 11 Original OEM,650000,15,Sparepart,Apple,480000,TTS-IP11-SCREEN-01,899123456701\n"
+        "BAT-SAM-S21,Baterai Samsung Galaxy S21,320000,10,Sparepart,Samsung,210000,TTS-S21-BATT-01,899123456702\n"
+        "CAS-MAG-CLR,Casing MagSafe Clear Armor,75000,50,Aksesoris,Universal,35000,TTS-CASE-MAG-01,899123456703\n"
+        "CAB-TC-100W,Kabel Data Type-C 100W Braided,55000,40,Aksesoris,Universal,25000,TTS-CAB-TC100-01,899123456704\n"
+        "SRV-PASANG-LCD,Jasa Pasang LCD & Kalibrasi,100000,0,Jasa Service,Internal,0,,\n"
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="template_export_ketoko.csv"'
         }
     )
 
